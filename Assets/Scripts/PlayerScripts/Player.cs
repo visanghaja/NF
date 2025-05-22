@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using System.Collections;
 
 public enum PlayerState
 {
@@ -7,6 +8,8 @@ public enum PlayerState
     Running,
     Jumping,
     Attacking,
+    Damaged,
+    Dash,
     Dead
 }
 
@@ -23,10 +26,14 @@ public class Player : MonoBehaviour
     public Transform groundCheck;
     public LayerMask groundLayer;
 
-    private PlayerState currentState = PlayerState.Idle;
+    private PlayerState _currentState = PlayerState.Idle;
     private bool isGrounded = true;
     private bool isAttacking = false;
-    private float horizontalInput;
+    private float _horizontalInput;
+
+    // Public properties to access private fields
+    public PlayerState CurrentState { get { return _currentState; } }
+    public float HorizontalInput { get { return _horizontalInput; } }
 
     void Update()
     {
@@ -37,7 +44,7 @@ public class Player : MonoBehaviour
     {
         Move();
         Debug.Log(isGrounded);
-        Debug.Log(currentState);
+        Debug.Log(_currentState);
     }
 
     void OnCollisionEnter2D(Collision2D collision)
@@ -46,7 +53,7 @@ public class Player : MonoBehaviour
         if (((1 << collision.gameObject.layer) & groundLayer) != 0)
         {
             isGrounded = true;
-            if (currentState == PlayerState.Jumping)
+            if (_currentState == PlayerState.Jumping)
             {
                 SetState(PlayerState.Idle);
             }
@@ -65,7 +72,20 @@ public class Player : MonoBehaviour
     void PlayerMove()
     {
         // Get horizontal input (left/right arrow keys)
-        horizontalInput = Input.GetAxisRaw("Horizontal");
+        _horizontalInput = Input.GetAxisRaw("Horizontal");
+
+        // Update sprite direction immediately when horizontal input changes
+        if (_horizontalInput != 0 && _currentState != PlayerState.Damaged)
+        {
+            spriteRenderer.flipX = _horizontalInput < 0;
+        }
+
+        // Handle attack input
+        if (Input.GetKeyDown(KeyCode.Q) && !isAttacking)
+        {
+            Attack();
+            return;  // 공격 중 다른 상태 변경 방지
+        }
 
         // Handle jump input
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
@@ -74,13 +94,12 @@ public class Player : MonoBehaviour
             return;  // 점프 후 다른 상태 변경 방지
         }
 
-        // Update animation state only if not jumping
-        if (currentState != PlayerState.Jumping)
+        // Update animation state only if not jumping or attacking
+        if (_currentState != PlayerState.Jumping && _currentState != PlayerState.Attacking)
         {
-            if (horizontalInput != 0)
+            if (_horizontalInput != 0)
             {
                 SetState(PlayerState.Running);
-                spriteRenderer.flipX = horizontalInput < 0;
             }
             else if (isGrounded)
             {
@@ -92,7 +111,7 @@ public class Player : MonoBehaviour
     void Move()
     {
         // Apply horizontal movement
-        Vector2 movement = new Vector2(horizontalInput * moveSpeed, rb.linearVelocity.y);
+        Vector2 movement = new Vector2(_horizontalInput * moveSpeed, rb.linearVelocity.y);
         rb.linearVelocity = movement;
     }
 
@@ -105,18 +124,46 @@ public class Player : MonoBehaviour
         isGrounded = false;
     }
 
+    void Attack()
+    {
+        isAttacking = true;
+        SetState(PlayerState.Attacking);
+        
+        // 공격 애니메이션이 끝나면 상태를 되돌리기 위해 코루틴 사용
+        StartCoroutine(ResetAttackState());
+    }
+
+    System.Collections.IEnumerator ResetAttackState()
+    {
+        // 공격 애니메이션 재생 시간만큼 대기 (예: 0.5초)
+        yield return new WaitForSeconds(0.5f);
+        
+        isAttacking = false;
+        if (_currentState == PlayerState.Attacking)
+        {
+            // 공격이 끝난 후 상태 복귀
+            if (_horizontalInput != 0)
+            {
+                SetState(PlayerState.Running);
+            }
+            else
+            {
+                SetState(PlayerState.Idle);
+            }
+        }
+    }
+
     public void SetState(PlayerState newState)
     {
-        if (currentState == newState) return;
+        if (_currentState == newState) return;
 
-        currentState = newState;
+        _currentState = newState;
         
         // Update animator parameters
         if (animator != null)
         {
             // Set the State parameter to match the current state
-            animator.SetInteger("State", (int)currentState);
-            
+            animator.SetInteger("State", (int)_currentState);
         }
     }
 }
