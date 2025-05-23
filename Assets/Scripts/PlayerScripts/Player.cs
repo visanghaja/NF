@@ -30,10 +30,38 @@ public class Player : MonoBehaviour
     private bool isGrounded = true;
     private bool isAttacking = false;
     private float _horizontalInput;
+    private float _verticalInput;
+    private Player_Wall.WallDirection _currentWallDirection = Player_Wall.WallDirection.None;
+    private Vector2 jumpDirection = Vector2.up;
+    private bool isFacingRight = true;
 
     // Public properties to access private fields
     public PlayerState CurrentState { get { return _currentState; } }
     public float HorizontalInput { get { return _horizontalInput; } }
+
+    public void SetWallDirection(Player_Wall.WallDirection direction)
+    {
+        _currentWallDirection = direction;
+        // Update jump direction based on wall
+        switch (direction)
+        {
+            case Player_Wall.WallDirection.Left:
+                jumpDirection = Vector2.right;
+                break;
+            case Player_Wall.WallDirection.Right:
+                jumpDirection = Vector2.left;
+                break;
+            case Player_Wall.WallDirection.Top:
+                jumpDirection = Vector2.down;
+                break;
+            case Player_Wall.WallDirection.Bottom:
+                jumpDirection = Vector2.up;
+                break;
+            default:
+                jumpDirection = Vector2.up;
+                break;
+        }
+    }
 
     void Update()
     {
@@ -43,7 +71,7 @@ public class Player : MonoBehaviour
     void FixedUpdate()
     {
         Move();
-        Debug.Log(_currentState);
+        //Debug.Log(_currentState);
     }
 
     void OnCollisionEnter2D(Collision2D collision)
@@ -70,13 +98,31 @@ public class Player : MonoBehaviour
 
     void PlayerMove()
     {
-        // Get horizontal input (left/right arrow keys)
-        _horizontalInput = Input.GetAxisRaw("Horizontal");
+        // Get input based on wall direction
+        if (_currentWallDirection == Player_Wall.WallDirection.Left || _currentWallDirection == Player_Wall.WallDirection.Right)
+        {
+            // On side walls, use vertical input for movement
+            _horizontalInput = Input.GetAxisRaw("Vertical");
+            _verticalInput = Input.GetAxisRaw("Horizontal");
+        }
+        else
+        {
+            // Normal movement
+            _horizontalInput = Input.GetAxisRaw("Horizontal");
+            _verticalInput = Input.GetAxisRaw("Vertical");
+        }
 
-        // Update sprite direction immediately when horizontal input changes
+        // Update facing direction
         if (_horizontalInput != 0 && _currentState != PlayerState.Damaged)
         {
-            spriteRenderer.flipX = _horizontalInput < 0;
+            if (_currentWallDirection == Player_Wall.WallDirection.Left || _currentWallDirection == Player_Wall.WallDirection.Right)
+            {
+                isFacingRight = _verticalInput > 0;
+            }
+            else
+            {
+                isFacingRight = _horizontalInput > 0;
+            }
         }
 
         // 대시 중에는 다른 상태 변경을 하지 않음
@@ -87,17 +133,17 @@ public class Player : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Q) && !isAttacking)
         {
             Attack();
-            return;  // 공격 중 다른 상태 변경 방지
+            return;
         }
 
         // Handle jump input
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
         {
             Jump();
-            return;  // 점프 후 다른 상태 변경 방지
+            return;
         }
 
-        // Update animation state only if not jumping or attacking
+        // Update animation state
         if (_currentState != PlayerState.Jumping && _currentState != PlayerState.Attacking)
         {
             if (_horizontalInput != 0)
@@ -113,17 +159,26 @@ public class Player : MonoBehaviour
 
     void Move()
     {
-        // Apply horizontal movement
-        Vector2 movement = new Vector2(_horizontalInput * moveSpeed, rb.linearVelocity.y);
+        Vector2 movement;
+        if (_currentWallDirection == Player_Wall.WallDirection.Left || _currentWallDirection == Player_Wall.WallDirection.Right)
+        {
+            // On side walls, use vertical input for movement
+            movement = new Vector2(rb.linearVelocity.x, _horizontalInput * moveSpeed);
+        }
+        else
+        {
+            // Normal movement
+            movement = new Vector2(_horizontalInput * moveSpeed, rb.linearVelocity.y);
+        }
         rb.linearVelocity = movement;
     }
 
     void Jump()
     {
-        if (!isGrounded) return;  // 이미 공중에 있다면 점프하지 않음
+        if (!isGrounded) return;
         
-        rb.AddForce(Vector2.up * JumpForce, ForceMode2D.Impulse);
-        SetState(PlayerState.Jumping);  // 상태를 먼저 변경
+        rb.AddForce(jumpDirection * JumpForce, ForceMode2D.Impulse);
+        SetState(PlayerState.Jumping);
         isGrounded = false;
     }
 

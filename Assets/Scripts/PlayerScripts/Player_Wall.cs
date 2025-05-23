@@ -3,61 +3,99 @@ using UnityEngine;
 
 public class Player_Wall : MonoBehaviour
 {
-    public Vector2 gravityDirection = Vector2.down;
     public float gravityStrength = 9.81f;
     private Rigidbody2D rb;
     private Player playerScript;
     private SpriteRenderer spriteRenderer;
     private bool isOnWall = false;
-    private Vector2 originalGravityDirection = Vector2.down;
+    private Vector2 originalGravity;
+    private WallDirection currentWallDirection = WallDirection.None;
+    private Quaternion originalRotation;
+    private float lastRotationTime = 0f;
+    private float rotationCooldown = 0.3f; // 회전 쿨다운 시간을 0.3초로 줄임
+
+    public enum WallDirection
+    {
+        None,
+        Left,
+        Right,
+        Top,
+        Bottom
+    }
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         playerScript = GetComponent<Player>();
         spriteRenderer = GetComponent<SpriteRenderer>();
-        originalGravityDirection = gravityDirection;
+        originalGravity = Physics2D.gravity;
+        originalRotation = transform.rotation;
     }
 
     void FixedUpdate()
     {
-        if (isOnWall && (playerScript.CurrentState == PlayerState.Jumping || playerScript.CurrentState == PlayerState.Dash))
+        if (!isOnWall)
         {
-            rb.gravityScale = 0;
-            rb.AddForce(gravityDirection.normalized * gravityStrength);
+            Physics2D.gravity = originalGravity;
+            currentWallDirection = WallDirection.None;
+            transform.rotation = originalRotation;
         }
-        else
-        {
-            rb.gravityScale = 1;
-            gravityDirection = originalGravityDirection;
-        }
+        playerScript.SetWallDirection(currentWallDirection);
     }
 
     void OnCollisionEnter2D(Collision2D collision)
     {
-        if (playerScript.CurrentState != PlayerState.Jumping && playerScript.CurrentState != PlayerState.Dash)
+        // 회전 쿨다운 체크
+        if (Time.time - lastRotationTime < rotationCooldown)
             return;
 
+        WallDirection newWallDirection = WallDirection.None;
         switch (collision.gameObject.tag)
         {
             case "bottom":
-                isOnWall = true;
-                SetGravityDirection(Vector2.down);
-                transform.rotation = Quaternion.Euler(0, 0, 0);
+                newWallDirection = WallDirection.Bottom;
                 break;
             case "left":
-                isOnWall = true;
-                SetGravityDirection(Vector2.left);
-                transform.rotation = Quaternion.Euler(0, 0, 90);
+                newWallDirection = WallDirection.Left;
                 break;
             case "right":
-                isOnWall = true;
-                SetGravityDirection(Vector2.right);
-                transform.rotation = Quaternion.Euler(0, 0, -90);
+                newWallDirection = WallDirection.Right;
                 break;
             case "top":
-                isOnWall = true;
-                SetGravityDirection(Vector2.up);
+                newWallDirection = WallDirection.Top;
+                break;
+            default:
+                return;
+        }
+
+        // 이미 같은 벽에 닿아있으면 무시
+        if (newWallDirection == currentWallDirection)
+            return;
+
+        isOnWall = true;
+        currentWallDirection = newWallDirection;
+        lastRotationTime = Time.time;
+
+        switch (newWallDirection)
+        {
+            case WallDirection.Bottom:
+                Debug.Log("Hit bottom wall");
+                Physics2D.gravity = Vector2.down * gravityStrength;
+                transform.rotation = Quaternion.Euler(0, 0, 0);
+                break;
+            case WallDirection.Left:
+                Debug.Log("Hit left wall");
+                Physics2D.gravity = Vector2.left * gravityStrength;
+                transform.rotation = Quaternion.Euler(0, 0, -90);
+                break;
+            case WallDirection.Right:
+                Debug.Log("Hit right wall");
+                Physics2D.gravity = Vector2.right * gravityStrength;
+                transform.rotation = Quaternion.Euler(0, 0, 90);
+                break;
+            case WallDirection.Top:
+                Debug.Log("Hit top wall");
+                Physics2D.gravity = Vector2.up * gravityStrength;
                 transform.rotation = Quaternion.Euler(0, 0, 180);
                 break;
         }
@@ -70,15 +108,16 @@ public class Player_Wall : MonoBehaviour
             collision.gameObject.CompareTag("right") || 
             collision.gameObject.CompareTag("top"))
         {
-            isOnWall = false;
-            transform.rotation = Quaternion.Euler(0, 0, 0);
-            gravityDirection = originalGravityDirection;
-            rb.gravityScale = 1;
-        }
-    }
+            // 회전 쿨다운 체크
+            if (Time.time - lastRotationTime < rotationCooldown)
+                return;
 
-    void SetGravityDirection(Vector2 direction)
-    {
-        gravityDirection = direction;
+            Debug.Log("Exiting wall collision");
+            isOnWall = false;
+            currentWallDirection = WallDirection.None;
+            transform.rotation = originalRotation;
+            lastRotationTime = Time.time;
+            Physics2D.gravity = originalGravity;
+        }
     }
 }

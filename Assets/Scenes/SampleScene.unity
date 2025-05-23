@@ -968,7 +968,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5cc503311b9f9d54d85a5b197b00c9f9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gravityDirection: {x: 0, y: -1}
   gravityStrength: 9.81
 --- !u!1 &921657433
 GameObject:
