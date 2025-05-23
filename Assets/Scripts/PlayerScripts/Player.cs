@@ -43,7 +43,6 @@ public class Player : MonoBehaviour
     void FixedUpdate()
     {
         Move();
-        Debug.Log(isGrounded);
         Debug.Log(_currentState);
     }
 
@@ -79,6 +78,10 @@ public class Player : MonoBehaviour
         {
             spriteRenderer.flipX = _horizontalInput < 0;
         }
+
+        // 대시 중에는 다른 상태 변경을 하지 않음
+        if (_currentState == PlayerState.Dash)
+            return;
 
         // Handle attack input
         if (Input.GetKeyDown(KeyCode.Q) && !isAttacking)
