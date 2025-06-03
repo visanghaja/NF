@@ -41,25 +41,52 @@ public class Player : MonoBehaviour
 
     public void SetWallDirection(Player_Wall.WallDirection direction)
     {
-        _currentWallDirection = direction;
-        // Update jump direction based on wall
-        switch (direction)
+        // 이전 벽 방향과 새로운 벽 방향이 다를 때만 처리
+        if (_currentWallDirection != direction)
         {
-            case Player_Wall.WallDirection.Left:
-                jumpDirection = Vector2.right;
-                break;
-            case Player_Wall.WallDirection.Right:
-                jumpDirection = Vector2.left;
-                break;
-            case Player_Wall.WallDirection.Top:
-                jumpDirection = Vector2.down;
-                break;
-            case Player_Wall.WallDirection.Bottom:
-                jumpDirection = Vector2.up;
-                break;
-            default:
-                jumpDirection = Vector2.up;
-                break;
+            // 벽 방향이 변경될 때 상태 초기화
+            if (_currentState != PlayerState.Jumping && _currentState != PlayerState.Attacking && _currentState != PlayerState.Dash)
+            {
+                // 이전 벽 방향이 좌우 벽이었고, 새로운 방향이 상하 벽이거나 None일 때
+                if ((_currentWallDirection == Player_Wall.WallDirection.Left || _currentWallDirection == Player_Wall.WallDirection.Right) &&
+                    (direction == Player_Wall.WallDirection.Top || direction == Player_Wall.WallDirection.Bottom || direction == Player_Wall.WallDirection.None))
+                {
+                    SetState(PlayerState.Idle);
+                }
+                // 이전 벽 방향이 상하 벽이었고, 새로운 방향이 좌우 벽이거나 None일 때
+                else if ((_currentWallDirection == Player_Wall.WallDirection.Top || _currentWallDirection == Player_Wall.WallDirection.Bottom) &&
+                         (direction == Player_Wall.WallDirection.Left || direction == Player_Wall.WallDirection.Right || direction == Player_Wall.WallDirection.None))
+                {
+                    SetState(PlayerState.Idle);
+                }
+                // 벽에서 완전히 벗어났을 때
+                else if (direction == Player_Wall.WallDirection.None && isGrounded)
+                {
+                    SetState(PlayerState.Idle);
+                }
+            }
+
+            _currentWallDirection = direction;
+            
+            // Update jump direction based on wall
+            switch (direction)
+            {
+                case Player_Wall.WallDirection.Left:
+                    jumpDirection = Vector2.right;
+                    break;
+                case Player_Wall.WallDirection.Right:
+                    jumpDirection = Vector2.left;
+                    break;
+                case Player_Wall.WallDirection.Top:
+                    jumpDirection = Vector2.down;
+                    break;
+                case Player_Wall.WallDirection.Bottom:
+                    jumpDirection = Vector2.up;
+                    break;
+                default:
+                    jumpDirection = Vector2.up;
+                    break;
+            }
         }
     }
 
@@ -146,7 +173,19 @@ public class Player : MonoBehaviour
         // Update animation state
         if (_currentState != PlayerState.Jumping && _currentState != PlayerState.Attacking)
         {
-            if (_horizontalInput != 0)
+            bool isMoving = false;
+            
+            // 벽 방향에 따라 실제 이동 여부 확인
+            if (_currentWallDirection == Player_Wall.WallDirection.Left || _currentWallDirection == Player_Wall.WallDirection.Right)
+            {
+                isMoving = Mathf.Abs(_horizontalInput) > 0.1f; // 수직 이동이 있을 때만 이동으로 간주
+            }
+            else
+            {
+                isMoving = Mathf.Abs(_horizontalInput) > 0.1f; // 수평 이동이 있을 때만 이동으로 간주
+            }
+
+            if (isMoving)
             {
                 SetState(PlayerState.Running);
             }
