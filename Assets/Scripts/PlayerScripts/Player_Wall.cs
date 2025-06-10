@@ -70,8 +70,8 @@ public class Player_Wall : MonoBehaviour
             currentWallDirection = newWallDirection;
             UpdateGravityDirection();
             RotatePlayer();
-            playerScript.SetWallDirection(currentWallDirection);
-        }
+        playerScript.SetWallDirection(currentWallDirection);
+    }
     }
 
     private void UpdateGravityDirection()
@@ -97,7 +97,7 @@ public class Player_Wall : MonoBehaviour
     }
 
     private void ApplyGravity()
-    {
+        {
         // 현재 속도에 중력 방향으로 힘을 추가
         rb.linearVelocity += gravityDirection * gravityStrength * Time.fixedDeltaTime;
     }
